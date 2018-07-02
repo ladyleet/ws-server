@@ -2,41 +2,42 @@ const server = require('http').createServer();
 const express = require('express');
 const WebSocketServer = require('ws').Server;
 const cors = require('cors');
-
+const { interval } = require('rxjs');
+const { map, scan } = require('rxjs/operators');
 const app = express();
 const PORT = 8080;
 
 const wss = new WebSocketServer({ server });
+const fakeData = interval(1000/60).pipe(
+  scan((positions) => positions.map(position => ({
+    x: position.x + (Math.random() * 5) - 2.5, 
+    y: position.y + (Math.random() * 5) - 2.5,
+  })), Array.from({length: 10}, () => ({
+    x: Math.round(Math.random() * 180),
+    y: Math.round(Math.random() * 450),
+  })))
+);
 
 app.use(cors());
-
-const clients = new Map();
-const connections = new Map();
-
-setInterval(() => {
-  updateClients();
-}, 1000 / 60);
-
 
 let cid = 0;
 wss.on('connection', (ws) => {
   const clientId = cid++;
-  connections.set(clientId, ws);
-  clients.set(clientId, { x: 0, y: 0 });
-
   console.log(`client ${clientId} CONNECTED`);
-
+  
+  const subscription = fakeData.subscribe(position => {
+    if(ws.readyState === 1)
+    ws.send(JSON.stringify(position))}
+  );
 
   ws.on('close', () => {
     console.log(`client ${clientId} CLOSED`);
-    clients.delete(clientId);
-    connections.delete(clientId);
+    subscription.unsubscribe();
   });
 
   ws.on('error', (error) => {
     console.log(`client ${clientId} ERROR`);
-    clients.delete(clientId);
-    connections.delete(clientId);
+    subscription.unsubscribe();
   });
 
   ws.on('message', (msg) => {
@@ -47,33 +48,9 @@ wss.on('connection', (ws) => {
       payload = JSON.parse(msg);
     } catch (err) {
       console.error(`ERROR: client ${clientId} - unable to parse message "${msg}"`);
-    }
-    
-    const { type, x, y } = payload;
-
-    switch(type) {
-      case 'UPDATE_POSITION':
-        clients.set(clientId, { x, y });
-        break;
-      default:
-    }
+    }    
   });
 });
-
-function updateClients() {
-  if (clients.keys.length <= 1) return;
-
-  const allPositions = clients.keys.map(clientId => {
-    const { x, y } = clients.get(clientId);
-    return { clientId, x, y };
-  });
-
-  for (const clientId of connections.keys) {
-    connections.get(clientId).send(JSON.stringify(
-      allPositions.filter(p => p.clientId !== clientId)
-    ));
-  }
-}
 
 server.listen(PORT, () => console.log(`server listening on port ${PORT}`));
 server.on('request', app);
