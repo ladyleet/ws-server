@@ -12,7 +12,7 @@ const wss = new WebSocketServer({ server });
 /**
  * Gets a single stream of fake data
  */
-const fakeData = interval(1000/60).pipe(
+const fakeData = () => interval(1000/60).pipe(
   scan(position => ({
     x: position.x + (Math.random() * 5) - 2.5, 
     y: position.y + (Math.random() * 5) - 2.5,
@@ -55,7 +55,7 @@ wss.on('connection', (ws) => {
       // unique stream id
       const id = uid++;
       // of fake data
-      return fakeData.pipe(
+      return fakeData().pipe(
         // but add a unique stream id to it so the clients can unsub later
         map(({ x, y }) => ({ x, y, id })),
         // let the stream run until the client sends a message with type === 'unsub'
