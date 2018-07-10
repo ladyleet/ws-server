@@ -47,9 +47,9 @@ wss.on('connection', (ws) => {
 
   // for every message from the client
   messages.pipe(
-    // if it has type === 'sub'
+    // if it has type === 'REQUEST_KEN_HEAD'
     map( x => JSON.parse(x)),
-    filter(data => data.type === 'sub'),
+    filter(data => data.type === 'REQUEST_KEN_HEAD'),
     // make a new observable and flatten into this one
     mergeMap(() => {
       // unique stream id
